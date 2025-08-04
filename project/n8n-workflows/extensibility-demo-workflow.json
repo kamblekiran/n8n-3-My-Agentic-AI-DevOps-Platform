@@ -1,0 +1,473 @@
+{
+  "name": "Extensibility Demo - Security Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "security-scan",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "security-trigger",
+      "name": "Security Scan Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "security-scan-trigger"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-server:3000/agent/security/vulnerability-scan",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.MCP_SERVER_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "repository",
+              "value": "={{ $json.repository }}"
+            },
+            {
+              "name": "branch",
+              "value": "={{ $json.branch || 'main' }}"
+            },
+            {
+              "name": "scan_type",
+              "value": "comprehensive"
+            },
+            {
+              "name": "llm_model",
+              "value": "gpt-4"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "vulnerability-scanner",
+      "name": "Vulnerability Scanner Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-server:3000/agent/security/compliance-check",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.MCP_SERVER_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "repository",
+              "value": "={{ $json.repository }}"
+            },
+            {
+              "name": "compliance_standards",
+              "value": "=['SOC2', 'GDPR', 'HIPAA']"
+            },
+            {
+              "name": "llm_analysis",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "compliance-checker",
+      "name": "Compliance Checker Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-server:3000/agent/cost/analyzer",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.MCP_SERVER_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "deployment_config",
+              "value": "={{ $json }}"
+            },
+            {
+              "name": "cloud_provider",
+              "value": "azure"
+            },
+            {
+              "name": "optimization_level",
+              "value": "aggressive"
+            },
+            {
+              "name": "llm_recommendations",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cost-analyzer",
+      "name": "Cost Analyzer Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-server:3000/agent/sre/reliability-assessment",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.MCP_SERVER_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "service_architecture",
+              "value": "={{ $json }}"
+            },
+            {
+              "name": "slo_targets",
+              "value": "={'availability': 99.9, 'latency_p99': 200}"
+            },
+            {
+              "name": "chaos_engineering",
+              "value": "true"
+            },
+            {
+              "name": "llm_insights",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sre-agent",
+      "name": "SRE Reliability Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "high-risk",
+              "leftValue": "={{ $('Vulnerability Scanner Agent').item.json.risk_level }}",
+              "rightValue": "high",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "compliance-fail",
+              "leftValue": "={{ $('Compliance Checker Agent').item.json.compliance_score }}",
+              "rightValue": 80,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "security-gate",
+      "name": "Security Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-server:3000/agent/security/auto-remediation",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.MCP_SERVER_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "vulnerabilities",
+              "value": "={{ $('Vulnerability Scanner Agent').item.json.vulnerabilities }}"
+            },
+            {
+              "name": "compliance_issues",
+              "value": "={{ $('Compliance Checker Agent').item.json.issues }}"
+            },
+            {
+              "name": "auto_fix",
+              "value": "true"
+            },
+            {
+              "name": "create_pr",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "auto-remediation",
+      "name": "Auto-Remediation Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-server:3000/llm/security-report",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.MCP_SERVER_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "vulnerability_data",
+              "value": "={{ $('Vulnerability Scanner Agent').item.json }}"
+            },
+            {
+              "name": "compliance_data",
+              "value": "={{ $('Compliance Checker Agent').item.json }}"
+            },
+            {
+              "name": "cost_analysis",
+              "value": "={{ $('Cost Analyzer Agent').item.json }}"
+            },
+            {
+              "name": "sre_assessment",
+              "value": "={{ $('SRE Reliability Agent').item.json }}"
+            },
+            {
+              "name": "report_format",
+              "value": "executive_summary"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "security-report",
+      "name": "AI Security Report Generator",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"status\": \"security_scan_complete\",\n  \"risk_level\": $('Vulnerability Scanner Agent').item.json.risk_level,\n  \"compliance_score\": $('Compliance Checker Agent').item.json.compliance_score,\n  \"cost_optimization\": $('Cost Analyzer Agent').item.json.savings_potential,\n  \"reliability_score\": $('SRE Reliability Agent').item.json.reliability_score,\n  \"auto_remediation_applied\": $('Auto-Remediation Agent').item.json.fixes_applied || 0,\n  \"executive_report\": $json.report_url,\n  \"recommendations\": $json.key_recommendations\n} }}",
+        "options": {}
+      },
+      "id": "scan-response",
+      "name": "Security Scan Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1780, 300]
+    }
+  ],
+  "connections": {
+    "Security Scan Trigger": {
+      "main": [
+        [
+          {
+            "node": "Vulnerability Scanner Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Compliance Checker Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vulnerability Scanner Agent": {
+      "main": [
+        [
+          {
+            "node": "Cost Analyzer Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Security Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compliance Checker Agent": {
+      "main": [
+        [
+          {
+            "node": "Cost Analyzer Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Security Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cost Analyzer Agent": {
+      "main": [
+        [
+          {
+            "node": "SRE Reliability Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SRE Reliability Agent": {
+      "main": [
+        [
+          {
+            "node": "Security Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Security Gate": {
+      "main": [
+        [
+          {
+            "node": "Auto-Remediation Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Security Report Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auto-Remediation Agent": {
+      "main": [
+        [
+          {
+            "node": "AI Security Report Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Security Report Generator": {
+      "main": [
+        [
+          {
+            "node": "Security Scan Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2024-01-15T10:00:00.000Z",
+      "updatedAt": "2024-01-15T10:00:00.000Z",
+      "id": "security-extensibility",
+      "name": "Security & Extensibility"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-15T10:00:00.000Z",
+  "versionId": "1"
+}

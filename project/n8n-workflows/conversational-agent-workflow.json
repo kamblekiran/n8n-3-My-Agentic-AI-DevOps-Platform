@@ -1,0 +1,535 @@
+{
+  "name": "Conversational Agent Interface",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chat",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "chat-webhook",
+      "name": "Chat Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "conversational-interface"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-server:3000/llm/intent-analysis",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.MCP_SERVER_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "user_message",
+              "value": "={{ $json.message }}"
+            },
+            {
+              "name": "user_id",
+              "value": "={{ $json.user_id }}"
+            },
+            {
+              "name": "context",
+              "value": "devops_platform"
+            },
+            {
+              "name": "llm_model",
+              "value": "gpt-4"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "intent-analysis",
+      "name": "Intent Analysis (LLM)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "deploy-intent",
+              "leftValue": "={{ $json.intent }}",
+              "rightValue": "deploy",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "deploy-router",
+      "name": "Deploy Intent Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [680, 180]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "monitor-intent",
+              "leftValue": "={{ $json.intent }}",
+              "rightValue": "monitor",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "monitor-router",
+      "name": "Monitor Intent Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "rollback-intent",
+              "leftValue": "={{ $json.intent }}",
+              "rightValue": "rollback",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "rollback-router",
+      "name": "Rollback Intent Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [680, 420]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-server:3000/agent/deploy/conversational",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.MCP_SERVER_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "repository",
+              "value": "={{ $json.entities.repository }}"
+            },
+            {
+              "name": "environment",
+              "value": "={{ $json.entities.environment || 'staging' }}"
+            },
+            {
+              "name": "branch",
+              "value": "={{ $json.entities.branch || 'main' }}"
+            },
+            {
+              "name": "user_id",
+              "value": "={{ $json.user_id }}"
+            },
+            {
+              "name": "conversational_context",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "conversational-deploy",
+      "name": "Conversational Deploy Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 180]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-server:3000/agent/monitor/conversational",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.MCP_SERVER_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "service",
+              "value": "={{ $json.entities.service }}"
+            },
+            {
+              "name": "metrics",
+              "value": "={{ $json.entities.metrics || ['cpu', 'memory', 'response_time'] }}"
+            },
+            {
+              "name": "time_range",
+              "value": "={{ $json.entities.time_range || '1h' }}"
+            },
+            {
+              "name": "user_id",
+              "value": "={{ $json.user_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "conversational-monitor",
+      "name": "Conversational Monitor Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-server:3000/agent/rollback/conversational",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.MCP_SERVER_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "deployment_id",
+              "value": "={{ $json.entities.deployment_id }}"
+            },
+            {
+              "name": "service",
+              "value": "={{ $json.entities.service }}"
+            },
+            {
+              "name": "rollback_version",
+              "value": "={{ $json.entities.version || 'previous' }}"
+            },
+            {
+              "name": "user_id",
+              "value": "={{ $json.user_id }}"
+            },
+            {
+              "name": "confirmation_required",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "conversational-rollback",
+      "name": "Conversational Rollback Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 420]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-server:3000/llm/response-generation",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.MCP_SERVER_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "agent_response",
+              "value": "={{ $json }}"
+            },
+            {
+              "name": "original_intent",
+              "value": "={{ $('Intent Analysis (LLM)').item.json.intent }}"
+            },
+            {
+              "name": "user_message",
+              "value": "={{ $('Chat Webhook').item.json.message }}"
+            },
+            {
+              "name": "response_style",
+              "value": "conversational"
+            },
+            {
+              "name": "llm_model",
+              "value": "gpt-4"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "response-generation",
+      "name": "Response Generation (LLM)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"response\": $json.generated_response,\n  \"agent_used\": $json.agent_type,\n  \"execution_time\": $json.execution_time,\n  \"follow_up_actions\": $json.suggested_actions || [],\n  \"status\": \"success\"\n} }}",
+        "options": {}
+      },
+      "id": "chat-response",
+      "name": "Chat Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-server:3000/logging/conversation",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "user_id",
+              "value": "={{ $('Chat Webhook').item.json.user_id }}"
+            },
+            {
+              "name": "user_message",
+              "value": "={{ $('Chat Webhook').item.json.message }}"
+            },
+            {
+              "name": "intent",
+              "value": "={{ $('Intent Analysis (LLM)').item.json.intent }}"
+            },
+            {
+              "name": "agent_response",
+              "value": "={{ $json.generated_response }}"
+            },
+            {
+              "name": "timestamp",
+              "value": "={{ $now }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "conversation-log",
+      "name": "Conversation Log",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1120, 480]
+    }
+  ],
+  "connections": {
+    "Chat Webhook": {
+      "main": [
+        [
+          {
+            "node": "Intent Analysis (LLM)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Intent Analysis (LLM)": {
+      "main": [
+        [
+          {
+            "node": "Deploy Intent Router",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Monitor Intent Router",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Rollback Intent Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deploy Intent Router": {
+      "main": [
+        [
+          {
+            "node": "Conversational Deploy Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Monitor Intent Router": {
+      "main": [
+        [
+          {
+            "node": "Conversational Monitor Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rollback Intent Router": {
+      "main": [
+        [
+          {
+            "node": "Conversational Rollback Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conversational Deploy Agent": {
+      "main": [
+        [
+          {
+            "node": "Response Generation (LLM)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conversational Monitor Agent": {
+      "main": [
+        [
+          {
+            "node": "Response Generation (LLM)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conversational Rollback Agent": {
+      "main": [
+        [
+          {
+            "node": "Response Generation (LLM)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Response Generation (LLM)": {
+      "main": [
+        [
+          {
+            "node": "Chat Response",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Conversation Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2024-01-15T10:00:00.000Z",
+      "updatedAt": "2024-01-15T10:00:00.000Z",
+      "id": "conversational-ai",
+      "name": "Conversational AI"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-15T10:00:00.000Z",
+  "versionId": "1"
+}

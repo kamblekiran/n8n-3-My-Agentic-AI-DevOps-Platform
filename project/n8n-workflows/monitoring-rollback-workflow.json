@@ -1,0 +1,426 @@
+{
+  "name": "Monitoring & Rollback Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "health-check-trigger",
+      "name": "Health Check Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://mcp-server:3000/monitoring/deployments",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.MCP_SERVER_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get-deployments",
+      "name": "Get Active Deployments",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "deployments",
+        "options": {}
+      },
+      "id": "split-deployments",
+      "name": "Split Deployments",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-server:3000/agent/monitor/health-check",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.MCP_SERVER_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "deployment_id",
+              "value": "={{ $json.deployment_id }}"
+            },
+            {
+              "name": "service_url",
+              "value": "={{ $json.service_url }}"
+            },
+            {
+              "name": "llm_model",
+              "value": "gpt-4"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "health-check-agent",
+      "name": "Health Check Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-1",
+              "leftValue": "={{ $json.health_status }}",
+              "rightValue": "unhealthy",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "condition-2",
+              "leftValue": "={{ $json.error_rate }}",
+              "rightValue": 5,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "anomaly-detection",
+      "name": "Anomaly Detection",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-server:3000/agent/rollback",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.MCP_SERVER_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "deployment_id",
+              "value": "={{ $json.deployment_id }}"
+            },
+            {
+              "name": "rollback_strategy",
+              "value": "immediate"
+            },
+            {
+              "name": "reason",
+              "value": "Health check failed - {{ $json.health_status }}"
+            },
+            {
+              "name": "llm_analysis",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "rollback-agent",
+      "name": "Rollback Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-server:3000/agent/incident-response",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.MCP_SERVER_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "deployment_id",
+              "value": "={{ $json.deployment_id }}"
+            },
+            {
+              "name": "incident_type",
+              "value": "deployment_failure"
+            },
+            {
+              "name": "severity",
+              "value": "high"
+            },
+            {
+              "name": "auto_remediation",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "incident-response",
+      "name": "Incident Response Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1340, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-server:3000/notifications/pagerduty",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "routing_key",
+              "value": "{{ $env.PAGERDUTY_ROUTING_KEY }}"
+            },
+            {
+              "name": "event_action",
+              "value": "trigger"
+            },
+            {
+              "name": "dedup_key",
+              "value": "deployment-{{ $json.deployment_id }}"
+            },
+            {
+              "name": "payload",
+              "value": "={{ {\n  \"summary\": \"Deployment failure detected for \" + $json.deployment_id,\n  \"severity\": \"error\",\n  \"source\": \"agentic-devops-platform\",\n  \"component\": \"monitoring-agent\"\n} }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "pagerduty-alert",
+      "name": "PagerDuty Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-server:3000/logging/audit",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "event_type",
+              "value": "automated_rollback"
+            },
+            {
+              "name": "deployment_id",
+              "value": "={{ $json.deployment_id }}"
+            },
+            {
+              "name": "rollback_result",
+              "value": "={{ $('Rollback Agent').item.json }}"
+            },
+            {
+              "name": "timestamp",
+              "value": "={{ $now }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "audit-log",
+      "name": "Audit Log",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1780, 300]
+    }
+  ],
+  "connections": {
+    "Health Check Schedule": {
+      "main": [
+        [
+          {
+            "node": "Get Active Deployments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Active Deployments": {
+      "main": [
+        [
+          {
+            "node": "Split Deployments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Deployments": {
+      "main": [
+        [
+          {
+            "node": "Health Check Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Health Check Agent": {
+      "main": [
+        [
+          {
+            "node": "Anomaly Detection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anomaly Detection": {
+      "main": [
+        [
+          {
+            "node": "Rollback Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Incident Response Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "PagerDuty Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rollback Agent": {
+      "main": [
+        [
+          {
+            "node": "Audit Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Incident Response Agent": {
+      "main": [
+        [
+          {
+            "node": "Audit Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PagerDuty Alert": {
+      "main": [
+        [
+          {
+            "node": "Audit Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2024-01-15T10:00:00.000Z",
+      "updatedAt": "2024-01-15T10:00:00.000Z",
+      "id": "monitoring-rollback",
+      "name": "Monitoring & Rollback"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-15T10:00:00.000Z",
+  "versionId": "1"
+}
