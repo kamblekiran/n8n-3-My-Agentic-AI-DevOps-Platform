@@ -1,5 +1,5 @@
 # MCP DevOps Server
-
+9f56d84e-8320-487e-9b95-968c0532092c
 A centralized Model Context Protocol (MCP) server that integrates LLM intelligence with DevOps tools and workflows. This server is designed to work seamlessly with n8n workflows for agentic DevOps automation.
 
 ## Features
