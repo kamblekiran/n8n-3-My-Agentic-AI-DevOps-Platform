@@ -1,0 +1,37 @@
+@@ .. @@
+       "id": "pr-filter",
+       "name": "Filter PR Events",
+       "type": "n8n-nodes-base.if",
+       "typeVersion": 2,
+       "position": [460, 300]
+     },
+     {
+       "parameters": {
+         "method": "POST",
+         "url": "http://mcp-server:3000/agent/code-review",
+@@ .. @@
+           "conditions": [
+             {
+               "id": "condition-1",
+-              "leftValue": "={{ $json.action }}",
++              "leftValue": "={{ $json.action || $json.pull_request?.action }}",
+               "rightValue": "opened",
+               "operator": {
+                 "type": "string",
+@@ -85,7 +85,7 @@
+             },
+             {
+               "id": "condition-2",
+-              "leftValue": "={{ $json.action }}",
++              "leftValue": "={{ $json.action || $json.pull_request?.action }}",
+               "rightValue": "synchronize",
+               "operator": {
+                 "type": "string",
+@@ .. @@
+               }
+             }
+           ],
+           "combinator": "or"
+         },
+         "options": {}
+       },
