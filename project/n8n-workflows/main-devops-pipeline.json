@@ -26,7 +26,7 @@
           "conditions": [
             {
               "id": "condition-1",
-              "leftValue": "={{ $json.action }}",
+              "leftValue": "={{ $json.action || $json.pull_request?.action }}",
               "rightValue": "opened",
               "operator": {
                 "type": "string",
@@ -35,8 +35,17 @@
             },
             {
               "id": "condition-2",
-              "leftValue": "={{ $json.action }}",
+              "leftValue": "={{ $json.action || $json.pull_request?.action }}",
               "rightValue": "synchronize",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "condition-3",
+              "leftValue": "={{ $json.action || $json.pull_request?.action }}",
+              "rightValue": "reopened",
               "operator": {
                 "type": "string",
                 "operation": "equals"
@@ -79,11 +88,19 @@
             },
             {
               "name": "pr_number",
-              "value": "={{ $json.number }}"
+              "value": "={{ $json.number || $json.pull_request?.number }}"
             },
             {
               "name": "diff_url",
-              "value": "={{ $json.pull_request.diff_url }}"
+              "value": "={{ $json.pull_request?.diff_url || null }}"
+            },
+            {
+              "name": "base_sha",
+              "value": "={{ $json.pull_request?.base?.sha || null }}"
+            },
+            {
+              "name": "head_sha",
+              "value": "={{ $json.pull_request?.head?.sha || null }}"
             },
             {
               "name": "llm_model",
@@ -125,11 +142,11 @@
             },
             {
               "name": "pr_number",
-              "value": "={{ $json.number }}"
+              "value": "={{ $json.number || $json.pull_request?.number }}"
             },
             {
               "name": "changed_files",
-              "value": "={{ $json.pull_request.changed_files }}"
+              "value": "={{ $json.pull_request?.changed_files || [] }}"
             },
             {
               "name": "llm_model",
@@ -209,11 +226,11 @@
             },
             {
               "name": "branch",
-              "value": "={{ $json.pull_request.head.ref }}"
+              "value": "={{ $json.pull_request?.head?.ref || 'main' }}"
             },
             {
               "name": "commit_sha",
-              "value": "={{ $json.pull_request.head.sha }}"
+              "value": "={{ $json.pull_request?.head?.sha || null }}"
             },
             {
               "name": "llm_model",
@@ -255,7 +272,7 @@
             },
             {
               "name": "commit_sha",
-              "value": "={{ $json.pull_request.head.sha }}"
+              "value": "={{ $json.pull_request?.head?.sha || null }}"
             },
             {
               "name": "build_prediction",
@@ -397,7 +414,7 @@
             },
             {
               "name": "message",
-              "value": "🚀 DevOps Pipeline completed successfully for {{ $json.repository.full_name }} PR #{{ $json.number }}"
+              "value": "🚀 DevOps Pipeline completed successfully for {{ $json.repository?.full_name || 'repository' }} PR #{{ $json.number || $json.pull_request?.number || 'N/A' }}"
             },
             {
               "name": "deployment_url",
