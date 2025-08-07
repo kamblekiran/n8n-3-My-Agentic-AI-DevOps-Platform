@@ -8,36 +8,131 @@ class DevOpsService {
     this.kubernetesConfig = process.env.KUBERNETES_CONFIG_PATH;
   }
 
-  async fetchPRDiff(repository, prNumber, diffUrl) {
+  async fetchPRDiff(repository, prNumber, diffUrl, baseSha, headSha) {
     try {
       logger.info('Fetching PR diff', { repository, prNumber });
       
+      // Validate GitHub token
+      if (!this.githubToken) {
+        throw new Error('GitHub token not configured. Please set GITHUB_TOKEN environment variable.');
+      }
+      
       if (diffUrl) {
-        const response = await axios.get(diffUrl, {
-          headers: {
-            'Authorization': `token ${this.githubToken}`,
-            'Accept': 'application/vnd.github.v3.diff'
-          }
-        });
-        return response.data;
+        try {
+          const response = await axios.get(diffUrl, {
+            headers: {
+              'Authorization': `token ${this.githubToken}`,
+              'Accept': 'application/vnd.github.v3.diff'
+            },
+            timeout: 10000
+          });
+          return response.data;
+        } catch (diffError) {
+          logger.warn('Failed to fetch diff from URL, trying alternative method', { diffUrl, error: diffError.message });
+        }
       }
 
-      // Fallback to GitHub API
-      const response = await axios.get(
-        `https://api.github.com/repos/${repository}/pulls/${prNumber}`,
-        {
-          headers: {
-            'Authorization': `token ${this.githubToken}`,
-            'Accept': 'application/vnd.github.v3.diff'
+      // Try multiple approaches to get the diff
+      const approaches = [
+        // Approach 1: Get PR diff directly
+        async () => {
+          const response = await axios.get(
+            `https://api.github.com/repos/${repository}/pulls/${prNumber}`,
+            {
+              headers: {
+                'Authorization': `token ${this.githubToken}`,
+                'Accept': 'application/vnd.github.v3.diff'
+              },
+              timeout: 10000
+            }
+          );
+          return response.data;
+        },
+        
+        // Approach 2: Compare commits if we have SHAs
+        async () => {
+          if (baseSha && headSha) {
+            const response = await axios.get(
+              `https://api.github.com/repos/${repository}/compare/${baseSha}...${headSha}`,
+              {
+                headers: {
+                  'Authorization': `token ${this.githubToken}`,
+                  'Accept': 'application/vnd.github.v3.diff'
+                },
+                timeout: 10000
+              }
+            );
+            return response.data;
           }
+          throw new Error('No SHAs provided for comparison');
+        },
+        
+        // Approach 3: Get PR details and extract files
+        async () => {
+          const response = await axios.get(
+            `https://api.github.com/repos/${repository}/pulls/${prNumber}/files`,
+            {
+              headers: {
+                'Authorization': `token ${this.githubToken}`,
+                'Accept': 'application/vnd.github.v3+json'
+              },
+              timeout: 10000
+            }
+          );
+          
+          // Convert files to diff format
+          return this.convertFilesToDiff(response.data);
         }
-      );
+      ];
       
-      return response.data;
+      let lastError;
+      for (const approach of approaches) {
+        try {
+          const result = await approach();
+          if (result && result.trim().length > 0) {
+            return result;
+          }
+        } catch (error) {
+          lastError = error;
+          logger.warn('Approach failed, trying next', { error: error.message });
+        }
+      }
+      
+      throw lastError || new Error('All approaches to fetch PR diff failed');
     } catch (error) {
       logger.error('Error fetching PR diff:', error);
-      throw new Error(`Failed to fetch PR diff: ${error.message}`);
+      
+      // Provide more helpful error messages
+      if (error.response?.status === 404) {
+        throw new Error(`Repository "${repository}" or PR #${prNumber} not found. Please verify the repository name and PR number.`);
+      } else if (error.response?.status === 401) {
+        throw new Error('GitHub authentication failed. Please check your GITHUB_TOKEN.');
+      } else if (error.response?.status === 403) {
+        throw new Error('GitHub API rate limit exceeded or insufficient permissions.');
+      } else {
+        throw new Error(`Failed to fetch PR diff: ${error.message}`);
+      }
     }
+  }
+
+  convertFilesToDiff(files) {
+    let diff = '';
+    
+    for (const file of files) {
+      diff += `diff --git a/${file.filename} b/${file.filename}\n`;
+      diff += `index ${file.sha?.substring(0, 7) || '0000000'}..${file.sha?.substring(0, 7) || '1111111'} 100644\n`;
+      diff += `--- a/${file.filename}\n`;
+      diff += `+++ b/${file.filename}\n`;
+      
+      if (file.patch) {
+        diff += file.patch + '\n';
+      } else {
+        diff += `@@ -0,0 +1,1 @@\n+File modified (patch not available)\n`;
+      }
+      diff += '\n';
+    }
+    
+    return diff || 'No changes detected in the pull request.';
   }
 
   async fetchRepositoryContent(repository, branch = 'main') {
@@ -77,8 +172,27 @@ class DevOpsService {
     }
   }
 
-  async fetchChangedFiles(repository, changedFiles) {
+  async fetchChangedFiles(repository, prNumber, changedFiles) {
     try {
+      // If no changed files provided, fetch from PR
+      if (!changedFiles || changedFiles.length === 0) {
+        try {
+          const prResponse = await axios.get(
+            `https://api.github.com/repos/${repository}/pulls/${prNumber}/files`,
+            {
+              headers: {
+                'Authorization': `token ${this.githubToken}`,
+                'Accept': 'application/vnd.github.v3+json'
+              }
+            }
+          );
+          changedFiles = prResponse.data;
+        } catch (error) {
+          logger.warn('Could not fetch changed files from PR:', error.message);
+          return [];
+        }
+      }
+      
       const files = [];
       
       for (const file of changedFiles || []) {
@@ -89,7 +203,8 @@ class DevOpsService {
               headers: {
                 'Authorization': `token ${this.githubToken}`,
                 'Accept': 'application/vnd.github.v3.raw'
-              }
+              },
+              timeout: 10000
             }
           );
           

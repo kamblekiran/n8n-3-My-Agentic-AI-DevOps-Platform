@@ -43,9 +43,13 @@ cp .env.example .env
 
 Edit `.env` with your actual credentials:
 - `ANTHROPIC_API_KEY`: Your Anthropic API key for Claude
-- `GITHUB_TOKEN`: GitHub personal access token
+- `GITHUB_TOKEN`: GitHub personal access token with `repo` scope for accessing repositories and PRs
 - `SLACK_WEBHOOK_URL`: Slack webhook for notifications
 - Other service credentials as needed
+
+**Important**: Make sure your GitHub token has the following permissions:
+- `repo` - Full control of private repositories (or `public_repo` for public repositories only)
+- `pull_requests` - Access to pull requests
 
 ### 3. Start the Server
 ```bash

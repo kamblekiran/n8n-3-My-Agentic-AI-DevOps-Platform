@@ -104,7 +104,15 @@
             },
             {
               "name": "diff_url",
-              "value": "={{ $json.pull_request.diff_url }}"
+              "value": "={{ $json.pull_request.diff_url || null }}"
+            },
+            {
+              "name": "base_sha",
+              "value": "={{ $json.pull_request.base.sha }}"
+            },
+            {
+              "name": "head_sha",
+              "value": "={{ $json.pull_request.head.sha }}"
             },
             {
               "name": "llm_model",

@@ -8,13 +8,35 @@ const logger = require('../utils/logger');
 // Code Review Agent
 router.post('/code-review', async (req, res) => {
   try {
-    const { repository, pr_number, diff_url, llm_model, analysis_type = 'comprehensive' } = req.body;
+    const { repository, pr_number, diff_url, base_sha, head_sha, llm_model, analysis_type = 'comprehensive' } = req.body;
+
+    // Validate required parameters
+    if (!repository) {
+      return res.status(400).json({
+        error: 'Missing required parameter: repository',
+        required_parameters: ['repository', 'pr_number']
+      });
+    }
+
+    if (!pr_number) {
+      return res.status(400).json({
+        error: 'Missing required parameter: pr_number',
+        required_parameters: ['repository', 'pr_number']
+      });
+    }
 
     logger.info('Starting code review', { repository, pr_number });
 
     // Fetch PR diff
-    const diffContent = await devopsService.fetchPRDiff(repository, pr_number, diff_url);
+    const diffContent = await devopsService.fetchPRDiff(repository, pr_number, diff_url, base_sha, head_sha);
     
+    if (!diffContent || diffContent.trim().length === 0) {
+      return res.status(400).json({
+        error: 'No diff content available for analysis',
+        message: 'The PR may not have any changes or the repository may not be accessible'
+      });
+    }
+
     // Analyze code with LLM
     const analysis = await llmService.analyzeCode(diffContent, analysis_type, { model: llm_model });
     
@@ -54,9 +76,23 @@ router.post('/code-review', async (req, res) => {
     res.json(result);
   } catch (error) {
     logger.error('Code review error:', error);
+    
+    // Provide more specific error messages
+    let errorMessage = error.message;
+    let statusCode = 500;
+    
+    if (error.message.includes('404')) {
+      errorMessage = 'Repository or PR not found. Please check the repository name and PR number.';
+      statusCode = 404;
+    } else if (error.message.includes('401') || error.message.includes('403')) {
+      errorMessage = 'Authentication failed. Please check your GitHub token permissions.';
+      statusCode = 401;
+    }
+    
     res.status(500).json({
       error: 'Code review failed',
-      message: error.message
+      message: errorMessage,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
@@ -67,10 +103,19 @@ router.post('/test-writer', async (req, res) => {
   try {
     const { repository, pr_number, changed_files, llm_model, test_framework } = req.body;
 
+    // Validate required parameters
+    if (!repository || !pr_number) {
+      return res.status(400).json({
+        error: 'Missing required parameters',
+        required_parameters: ['repository', 'pr_number'],
+        received: { repository: !!repository, pr_number: !!pr_number }
+      });
+    }
+
     logger.info('Generating tests', { repository, pr_number });
 
     // Fetch changed files content
-    const filesContent = await devopsService.fetchChangedFiles(repository, changed_files);
+    const filesContent = await devopsService.fetchChangedFiles(repository, pr_number, changed_files);
     
     let totalTestsGenerated = 0;
     const generatedTests = [];
