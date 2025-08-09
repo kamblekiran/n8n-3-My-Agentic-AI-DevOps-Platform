@@ -42,6 +42,8 @@ cp .env.example .env
 ```
 
 Edit `.env` with your actual credentials:
+- `MCP_SERVER_URL`: URL of your MCP server (default: http://localhost:3000)
+- `MCP_SERVER_TOKEN`: Authentication token for the MCP server
 - `ANTHROPIC_API_KEY`: Your Anthropic API key for Claude
 - `GITHUB_TOKEN`: GitHub personal access token with `repo` scope for accessing repositories and PRs
 - `SLACK_WEBHOOK_URL`: Slack webhook for notifications
@@ -105,21 +107,23 @@ This server is designed to work with the provided n8n workflows:
 ### Setting up n8n Integration
 
 1. Import the workflow JSON files into your n8n instance
-2. Configure the HTTP Request nodes to point to your MCP server
-3. Set the `MCP_SERVER_TOKEN` environment variable in n8n
-4. Configure webhook URLs and credentials
+2. Create HTTP Header Auth credentials in n8n:
+   - Name: `MCP Server Auth`
+   - Header Name: `Authorization`
+   - Header Value: `Bearer YOUR_MCP_SERVER_TOKEN`
+3. Set environment variables in n8n:
+   - `MCP_SERVER_URL`: Your MCP server URL
+   - `MCP_SERVER_TOKEN`: Your authentication token
+4. Configure webhook URLs and other credentials
 
-### Example n8n HTTP Request Configuration
-```json
-{
-  "method": "POST",
-  "url": "http://your-mcp-server:3000/agent/code-review",
-  "headers": {
-    "Authorization": "Bearer {{ $env.MCP_SERVER_TOKEN }}",
-    "Content-Type": "application/json"
-  }
-}
-```
+### n8n Workflow Features
+
+The updated workflows include:
+- Proper authentication using HTTP Header Auth credentials
+- Environment variable support for server URL
+- Improved error handling and data flow
+- Better JSON body formatting for API calls
+- Mock data support when GitHub is not available
 
 ## Authentication
 

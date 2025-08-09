@@ -26,7 +26,7 @@
           "conditions": [
             {
               "id": "condition-1",
-              "leftValue": "={{ $json.action || $json.pull_request?.action }}",
+              "leftValue": "={{ $json.action }}",
               "rightValue": "opened",
               "operator": {
                 "type": "string",
@@ -34,8 +34,8 @@
               }
             },
             {
-              "id": "condition-2",
-              "leftValue": "={{ $json.action || $json.pull_request?.action }}",
+              "id": "condition-2", 
+              "leftValue": "={{ $json.action }}",
               "rightValue": "synchronize",
               "operator": {
                 "type": "string",
@@ -44,7 +44,7 @@
             },
             {
               "id": "condition-3",
-              "leftValue": "={{ $json.action || $json.pull_request?.action }}",
+              "leftValue": "={{ $json.action }}",
               "rightValue": "reopened",
               "operator": {
                 "type": "string",
@@ -64,103 +64,65 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "http://mcp-server:3000/agent/code-review",
+        "url": "={{ $env.MCP_SERVER_URL || 'http://localhost:3000' }}/agent/code-review",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Content-Type",
               "value": "application/json"
-            },
-            {
-              "name": "Authorization",
-              "value": "Bearer {{ $env.MCP_SERVER_TOKEN }}"
             }
           ]
         },
         "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "repository",
-              "value": "={{ $json.repository.full_name }}"
-            },
-            {
-              "name": "pr_number",
-              "value": "={{ $json.number || $json.pull_request?.number }}"
-            },
-            {
-              "name": "diff_url",
-              "value": "={{ $json.pull_request?.diff_url || null }}"
-            },
-            {
-              "name": "base_sha",
-              "value": "={{ $json.pull_request?.base?.sha || null }}"
-            },
-            {
-              "name": "head_sha",
-              "value": "={{ $json.pull_request?.head?.sha || null }}"
-            },
-            {
-              "name": "llm_model",
-              "value": "gpt-4"
-            }
-          ]
-        },
+        "contentType": "json",
+        "jsonBody": "={{ {\n  \"repository\": $json.repository.full_name,\n  \"pr_number\": $json.number,\n  \"diff_url\": $json.pull_request?.diff_url,\n  \"base_sha\": $json.pull_request?.base?.sha,\n  \"head_sha\": $json.pull_request?.head?.sha,\n  \"llm_model\": \"gpt-4\"\n} }}",
         "options": {}
       },
       "id": "code-review-agent",
       "name": "Code Review Agent",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [680, 180]
+      "position": [680, 180],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mcp-server-auth",
+          "name": "MCP Server Auth"
+        }
+      }
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "http://mcp-server:3000/agent/test-writer",
+        "url": "={{ $env.MCP_SERVER_URL || 'http://localhost:3000' }}/agent/test-writer",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Content-Type",
               "value": "application/json"
-            },
-            {
-              "name": "Authorization",
-              "value": "Bearer {{ $env.MCP_SERVER_TOKEN }}"
             }
           ]
         },
         "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "repository",
-              "value": "={{ $json.repository.full_name }}"
-            },
-            {
-              "name": "pr_number",
-              "value": "={{ $json.number || $json.pull_request?.number }}"
-            },
-            {
-              "name": "changed_files",
-              "value": "={{ $json.pull_request?.changed_files || [] }}"
-            },
-            {
-              "name": "llm_model",
-              "value": "gpt-4"
-            }
-          ]
-        },
+        "contentType": "json",
+        "jsonBody": "={{ {\n  \"repository\": $json.repository.full_name,\n  \"pr_number\": $json.number,\n  \"changed_files\": $json.pull_request?.changed_files || [],\n  \"llm_model\": \"gpt-4\"\n} }}",
         "options": {}
       },
       "id": "test-writer-agent",
-      "name": "Test Writer Agent",
+      "name": "Test Writer Agent", 
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [680, 420]
+      "position": [680, 420],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mcp-server-auth",
+          "name": "MCP Server Auth"
+        }
+      }
     },
     {
       "parameters": {
@@ -179,18 +141,8 @@
                 "type": "string",
                 "operation": "equals"
               }
-            },
-            {
-              "id": "condition-2",
-              "leftValue": "={{ $('Test Writer Agent').item.json.tests_generated }}",
-              "rightValue": 0,
-              "operator": {
-                "type": "number",
-                "operation": "gt"
-              }
             }
-          ],
-          "combinator": "and"
+          ]
         },
         "options": {}
       },
@@ -202,188 +154,132 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "http://mcp-server:3000/agent/build-predictor",
+        "url": "={{ $env.MCP_SERVER_URL || 'http://localhost:3000' }}/agent/build-predictor",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Content-Type",
               "value": "application/json"
-            },
-            {
-              "name": "Authorization",
-              "value": "Bearer {{ $env.MCP_SERVER_TOKEN }}"
             }
           ]
         },
         "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "repository",
-              "value": "={{ $json.repository.full_name }}"
-            },
-            {
-              "name": "branch",
-              "value": "={{ $json.pull_request?.head?.ref || 'main' }}"
-            },
-            {
-              "name": "commit_sha",
-              "value": "={{ $json.pull_request?.head?.sha || null }}"
-            },
-            {
-              "name": "llm_model",
-              "value": "gpt-4"
-            }
-          ]
-        },
+        "contentType": "json",
+        "jsonBody": "={{ {\n  \"repository\": $json.repository.full_name,\n  \"branch\": $json.pull_request?.head?.ref || 'main',\n  \"commit_sha\": $json.pull_request?.head?.sha,\n  \"llm_model\": \"gpt-4\"\n} }}",
         "options": {}
       },
       "id": "build-predictor",
       "name": "Build Predictor Agent",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1120, 300]
+      "position": [1120, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mcp-server-auth",
+          "name": "MCP Server Auth"
+        }
+      }
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "http://mcp-server:3000/agent/docker-handler",
+        "url": "={{ $env.MCP_SERVER_URL || 'http://localhost:3000' }}/agent/docker-handler",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Content-Type",
               "value": "application/json"
-            },
-            {
-              "name": "Authorization",
-              "value": "Bearer {{ $env.MCP_SERVER_TOKEN }}"
             }
           ]
         },
         "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "repository",
-              "value": "={{ $json.repository.full_name }}"
-            },
-            {
-              "name": "commit_sha",
-              "value": "={{ $json.pull_request?.head?.sha || null }}"
-            },
-            {
-              "name": "build_prediction",
-              "value": "={{ $('Build Predictor Agent').item.json }}"
-            },
-            {
-              "name": "action",
-              "value": "build_and_push"
-            }
-          ]
-        },
+        "contentType": "json",
+        "jsonBody": "={{ {\n  \"repository\": $json.repository.full_name,\n  \"commit_sha\": $json.pull_request?.head?.sha,\n  \"build_prediction\": $('Build Predictor Agent').item.json,\n  \"action\": \"build_and_push\"\n} }}",
         "options": {}
       },
       "id": "docker-handler",
       "name": "Docker/K8s Handler",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1340, 300]
+      "position": [1340, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mcp-server-auth",
+          "name": "MCP Server Auth"
+        }
+      }
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "http://mcp-server:3000/agent/deploy",
+        "url": "={{ $env.MCP_SERVER_URL || 'http://localhost:3000' }}/agent/deploy",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Content-Type",
               "value": "application/json"
-            },
-            {
-              "name": "Authorization",
-              "value": "Bearer {{ $env.MCP_SERVER_TOKEN }}"
             }
           ]
         },
         "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "repository",
-              "value": "={{ $json.repository.full_name }}"
-            },
-            {
-              "name": "image_tag",
-              "value": "={{ $('Docker/K8s Handler').item.json.image_tag }}"
-            },
-            {
-              "name": "environment",
-              "value": "staging"
-            },
-            {
-              "name": "kubernetes_config",
-              "value": "={{ $('Docker/K8s Handler').item.json.k8s_manifests }}"
-            }
-          ]
-        },
+        "contentType": "json",
+        "jsonBody": "={{ {\n  \"repository\": $json.repository.full_name,\n  \"image_tag\": $('Docker/K8s Handler').item.json.image_tag,\n  \"environment\": \"staging\",\n  \"kubernetes_config\": $('Docker/K8s Handler').item.json.k8s_manifests\n} }}",
         "options": {}
       },
       "id": "deploy-agent",
       "name": "Deploy Agent",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1560, 300]
+      "position": [1560, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mcp-server-auth",
+          "name": "MCP Server Auth"
+        }
+      }
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "http://mcp-server:3000/agent/monitor",
+        "url": "={{ $env.MCP_SERVER_URL || 'http://localhost:3000' }}/agent/monitor",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Content-Type",
               "value": "application/json"
-            },
-            {
-              "name": "Authorization",
-              "value": "Bearer {{ $env.MCP_SERVER_TOKEN }}"
             }
           ]
         },
         "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "deployment_id",
-              "value": "={{ $('Deploy Agent').item.json.deployment_id }}"
-            },
-            {
-              "name": "environment",
-              "value": "staging"
-            },
-            {
-              "name": "monitoring_duration",
-              "value": "300"
-            }
-          ]
-        },
+        "contentType": "json",
+        "jsonBody": "={{ {\n  \"deployment_id\": $('Deploy Agent').item.json.deployment_id,\n  \"environment\": \"staging\",\n  \"monitoring_duration\": \"300\"\n} }}",
         "options": {}
       },
       "id": "monitor-agent",
       "name": "Monitor Agent",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1780, 300]
+      "position": [1780, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mcp-server-auth",
+          "name": "MCP Server Auth"
+        }
+      }
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ {\n  \"status\": \"success\",\n  \"pipeline_id\": $json.pipeline_id || \"pipeline-\" + $now,\n  \"agents_executed\": [\n    \"code-review\",\n    \"test-writer\", \n    \"build-predictor\",\n    \"docker-handler\",\n    \"deploy-agent\",\n    \"monitor-agent\"\n  ],\n  \"deployment_url\": $('Deploy Agent').item.json.deployment_url,\n  \"monitoring_dashboard\": $('Monitor Agent').item.json.dashboard_url\n} }}",
+        "responseBody": "={{ {\n  \"status\": \"success\",\n  \"pipeline_id\": \"pipeline-\" + $now,\n  \"agents_executed\": [\n    \"code-review\",\n    \"test-writer\", \n    \"build-predictor\",\n    \"docker-handler\",\n    \"deploy-agent\",\n    \"monitor-agent\"\n  ],\n  \"deployment_url\": $('Deploy Agent').item.json.deployment_url,\n  \"monitoring_dashboard\": $('Monitor Agent').item.json.dashboard_url\n} }}",
         "options": {}
       },
       "id": "response-node",
@@ -394,8 +290,7 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "http://mcp-server:3000/notifications/slack",
+        "url": "={{ $env.MCP_SERVER_URL || 'http://localhost:3000' }}/notifications/slack",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -406,22 +301,8 @@
           ]
         },
         "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "channel",
-              "value": "#devops-alerts"
-            },
-            {
-              "name": "message",
-              "value": "🚀 DevOps Pipeline completed successfully for {{ $json.repository?.full_name || 'repository' }} PR #{{ $json.number || $json.pull_request?.number || 'N/A' }}"
-            },
-            {
-              "name": "deployment_url",
-              "value": "={{ $('Deploy Agent').item.json.deployment_url }}"
-            }
-          ]
-        },
+        "contentType": "json",
+        "jsonBody": "={{ {\n  \"channel\": \"#devops-alerts\",\n  \"message\": \"🚀 DevOps Pipeline completed successfully for \" + ($json.repository?.full_name || 'repository') + \" PR #\" + ($json.number || 'N/A'),\n  \"deployment_url\": $('Deploy Agent').item.json.deployment_url\n} }}",
         "options": {}
       },
       "id": "slack-notification",
